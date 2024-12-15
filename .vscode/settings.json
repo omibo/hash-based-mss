@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "wots.h": "c",
+        "hash_address.h": "c",
+        "params.h": "c"
+    }
+}

@@ -1,6 +1,11 @@
 CC = /usr/bin/gcc
 CFLAGS = -Wall -g -O3 -Wextra -Wpedantic
-LDLIBS = -lcrypto
+
+# Add OpenSSL paths
+OPENSSL_PREFIX = $(shell brew --prefix openssl@3)
+CFLAGS += -I$(OPENSSL_PREFIX)/include
+LDFLAGS += -L$(OPENSSL_PREFIX)/lib
+LDLIBS = -lcrypto -lssl
 
 SOURCES = params.c hash.c fips202.c hash_address.c randombytes.c wots.c xmss.c xmss_core.c xmss_commons.c utils.c
 HEADERS = params.h hash.h fips202.h hash_address.h randombytes.h wots.h xmss.h xmss_core.h xmss_commons.h utils.h
@@ -19,6 +24,8 @@ TESTS = test/wots \
 		test/maxsigsxmss \
 		test/maxsigsxmssmt \
 
+DISPLAYS = display/wots
+
 UI = ui/xmss_keypair \
 	 ui/xmss_sign \
 	 ui/xmss_open \
@@ -32,9 +39,10 @@ UI = ui/xmss_keypair \
 	 ui/xmssmt_sign_fast \
 	 ui/xmssmt_open_fast \
 
-all: tests ui
+all: tests ui display
 
 tests: $(TESTS)
+display: $(DISPLAYS)
 ui: $(UI)
 
 test: $(TESTS:=.exec)
@@ -83,7 +91,12 @@ ui/xmss_%: ui/%.c $(SOURCES) $(OBJS) $(HEADERS)
 ui/xmssmt_%: ui/%.c $(SOURCES) $(OBJS) $(HEADERS)
 	$(CC) -DXMSSMT $(CFLAGS) -o $@ $(SOURCES) $< $(LDLIBS)
 
+display/wots: display/wots.o randombytes.o hash.o wots.o utils.o hash_address.o xmss_commons.o fips202.o params.o xmss_core.o
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
 clean:
 	-$(RM) $(TESTS)
 	-$(RM) test/vectors
 	-$(RM) $(UI)
+	-$(RM) $(DISPLAYS)
+	-$(RM) *.o display/*.o
