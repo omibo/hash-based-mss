@@ -10,8 +10,9 @@
  *
  * Writes the computed public key to 'pk'.
  */
-void pots_pkgen(const xmss_params *params,
-                unsigned char *pk, const unsigned char *seed);
+void pots_pkgen(const xmss_params *params, unsigned char *sk,
+                      unsigned char *pk, const unsigned char *seed, 
+                      const unsigned char *pub_seed, uint32_t addr[8]);
 
 /**
  * Takes a n-byte message and the 32-byte seed for the private key to compute a
@@ -19,15 +20,17 @@ void pots_pkgen(const xmss_params *params,
  */
 void pots_sign(const xmss_params *params,
                unsigned char *sig, const unsigned char *msg,
-               const unsigned char *seed);
+               const unsigned char *seed, const unsigned char *pub_seed,
+               uint32_t addr[8]);
 
 /**
  * Takes a POTS signature, an n-byte message, and a POTS public key.
  *
  * Verifies the correctness of the signature.
  */
-void pots_verification(const xmss_params *params, unsigned char *pk,
-                      const unsigned char *sig, const unsigned char *msg);
+int pots_ver(const xmss_params *params,
+               unsigned char *sig, const unsigned char *msg,
+               const unsigned char *pk);
 
 
 #endif
