@@ -112,6 +112,20 @@ void gen_leaf_wots(const xmss_params *params, unsigned char *leaf,
     l_tree(params, leaf, pk, pub_seed, ltree_addr);
 }
 
+// void gen_leaf_pots(const xmss_params *params, unsigned char *leaf,
+//                    const unsigned char *sk_seed, const unsigned char *pub_seed,
+//                    uint32_t ltree_addr[8], uint32_t ots_addr[8])
+// {
+//     unsigned char sk[params->wots_len1 * params->wots_w * params->n];
+//     unsigned char pk[params->wots_len1 * params->wots_w * params->n];
+
+//     pots_pkgen(&params, sk, pk, sk_seed, pub_seed, ots_addr);
+
+//     unsigned char buf[SHA256_DIGEST_LENGTH];
+//     SHA256(pk, params->wots_len1 * params->wots_w * params->n, buf);
+//     memcpy(lead, buf, params->n);
+// }
+
 
 /**
  * Verifies a given message signature pair under a given public key.

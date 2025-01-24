@@ -6,6 +6,43 @@
 #include "../randombytes.h"
 #include "../params.h"
 
+void print_public_key(const xmss_params *params, unsigned char *pk)
+{
+    for (int i = 0; i < 2; i++) {
+        for (int j = 0; j < params->wots_w; j++) {
+            printf("PK - chain[%d] Node[%d]:\n", i + 1, j + 1);
+            for (int k = 0; k < params->n; k++) {
+                printf("%02x", pk[(i * params->wots_w + j) * params->n + k]);
+            }
+            printf("\n");
+        }
+    }
+}
+
+void print_secret_key(const xmss_params *params, unsigned char *sk)
+{
+    for (int i = 0; i < 2; i++) {
+        for (int j = 0; j < params->wots_w; j++) {
+            printf("SK - chain[%d] Node[%d]:\n", i + 1, j + 1);
+            for (int k = 0; k < params->n; k++) {
+                printf("%02x", sk[(i * params->wots_w + j) * params->n + k]);
+            }
+            printf("\n");
+        }
+    }
+}
+
+void print_signature(const xmss_params *params, unsigned char *sig)
+{
+    for (int i = 0; i < 2; i++) {
+        printf("SIG - chain[%d]:\n", i + 1);
+        for (int k = 0; k < params->n; k++) {
+            printf("%02x", sig[i * params->n + k]);
+        }
+        printf("\n");
+    }
+}
+
 int main()
 {
     xmss_params params;
@@ -28,57 +65,16 @@ int main()
     randombytes(m, params.n);
     randombytes((unsigned char *)addr, 8 * sizeof(uint32_t));
 
-    printf("Testing POTS signature and PK derivation.. ");
+    printf("Testing POTS signature and PK derivation.. \n");
 
     pots_pkgen(&params, sk, pk, seed, pub_seed, addr);
 
-    for (int i = 0; i < 2; i++) {
-        printf("PK Chain [%d]: \n", i);
-        for (int j = 0; j < params.wots_w; j++) {
-            printf("PK Node [%d]:\n", j);
-            for (int k = 0; k < params.n; k++) {
-                printf("%02x", pk[(i * params.wots_w + j) * params.n + k]);
-            }
-            printf("/n");
-        }
-    }
-
-    for (int i = 0; i < 2; i++) {
-        printf("SK Chain [%d]: \n", i);
-        for (int j = 0; j < params.wots_w; j++) {
-            printf("SK Node [%d]:\n", j);
-            for (int k = 0; k < params.n; k++) {
-                printf("%02x", sk[(i * params.wots_w + j) * params.n + k]);
-            }
-            printf("/n");
-        }
-    }
-
-    printf("Message to sign:\n");
-    for (int i = 0; i < params.n; i++) {
-        printf("%02x", m[i]);
-    }
-    printf("\n\n");
+    // print_public_key(&params, pk);
+    // print_secret_key(&params, sk);
 
     pots_sign(&params, sig, m, sk, pub_seed, addr);
 
-    printf("WOTS Signature:\n");
-    for (int i = 0; i < params.wots_len1; i++) {
-        printf("Chain[%d]: ", i);
-        for (int j = 0; j < params.n; j++) {
-            printf("%02x", sig[i * params.n + j]);
-        }
-        printf("\n");
-    }
-
+    // print_signature(&params, sig);
+    
     printf("Verification Result: %d\n", pots_ver(&params, sig, m, pk));
-
-    // wots_pk_from_sig(&params, pk2, sig, m, pub_seed, addr);
-
-    // if (memcmp(pk1, pk2, params.wots_sig_bytes)) {
-    //     printf("failed!\n");
-    //     return -1;
-    // }
-    // printf("successful.\n");
-    // return 0;
 }

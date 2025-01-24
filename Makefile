@@ -25,7 +25,10 @@ TESTS = test/wots \
 		test/maxsigsxmss \
 		test/maxsigsxmssmt \
 
-DISPLAYS = display/wots
+BENCHMARK = benchmark/wots \
+		benchmark/pots \
+		benchmark/aes_hash \
+		benchmark/xmss \
 
 UI = ui/xmss_keypair \
 	 ui/xmss_sign \
@@ -40,10 +43,10 @@ UI = ui/xmss_keypair \
 	 ui/xmssmt_sign_fast \
 	 ui/xmssmt_open_fast \
 
-all: tests ui display
+all: tests ui benchmark
 
 tests: $(TESTS)
-display: $(DISPLAYS)
+benchmark: $(BENCHMARK)
 ui: $(UI)
 
 test: $(TESTS:=.exec)
@@ -98,12 +101,21 @@ test/wots: test/wots.o randombytes.o hash.o wots.o utils.o hash_address.o xmss_c
 test/pots: test/pots.o randombytes.o hash.o pots.o wots.o utils.o hash_address.o xmss_commons.o fips202.o params.o xmss_core.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-display/wots: display/wots.o randombytes.o hash.o wots.o utils.o hash_address.o xmss_commons.o fips202.o params.o xmss_core.o
+benchmark/wots: benchmark/wots.o randombytes.o hash.o wots.o utils.o hash_address.o xmss_commons.o fips202.o params.o xmss_core.o
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+benchmark/pots: benchmark/pots.o randombytes.o hash.o pots.o wots.o utils.o hash_address.o xmss_commons.o fips202.o params.o xmss_core.o
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+benchmark/xmss: benchmark/xmss.o test/xmss.c $(SOURCES) $(OBJS) $(HEADERS)
+	$(CC) $(CFLAGS) -o $@ $(SOURCES) $< $(LDLIBS)
+
+benchmark/aes_hash: benchmark/aes_hash.o randombytes.o hash.o pots.o wots.o utils.o hash_address.o xmss_commons.o fips202.o params.o xmss_core.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 clean:
 	-$(RM) $(TESTS)
 	-$(RM) test/vectors
 	-$(RM) $(UI)
-	-$(RM) $(DISPLAYS)
-	-$(RM) *.o display/*.o
+	-$(RM) $(BENCHMARK)
+	-$(RM) *.o benchmark/*.o

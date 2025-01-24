@@ -29,7 +29,7 @@ void pots_sign(const xmss_params *params,
  * Verifies the correctness of the signature.
  */
 int pots_ver(const xmss_params *params,
-               unsigned char *sig, const unsigned char *msg,
+               const unsigned char *sig, const unsigned char *msg,
                const unsigned char *pk);
 
 

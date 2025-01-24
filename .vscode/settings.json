@@ -3,6 +3,8 @@
         "wots.h": "c",
         "hash_address.h": "c",
         "params.h": "c",
-        "pots.h": "c"
+        "pots.h": "c",
+        "randombytes.h": "c",
+        "utils.h": "c"
     }
 }
