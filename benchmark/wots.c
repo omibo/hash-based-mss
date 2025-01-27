@@ -5,8 +5,11 @@
 #include "../params.h"
 #include "../wots.h"
 #include "../randombytes.h"
+#include <math.h>  // Add this for sqrt function
 
 #include <time.h>
+
+#define INNER_TESTS 100
 
 void print_parameters(xmss_params *params) {
     printf("=== WOTS Parameters ===\n");
@@ -46,13 +49,13 @@ void keygen_time(void) {
     uint32_t oid = 0x00000001;
     xmss_parse_oid(&params, oid);
     
-    const int NUM_TESTS = 100000;
-    double total_time = 0.0;
+    const int NUM_TESTS = 1000;
     
     printf("\n=== WOTS Key Generation Benchmark ===\n");
-    printf("Running %d tests...\n", NUM_TESTS);
+    printf("Running %d rounds (average of %d tests per round)...\n", NUM_TESTS, INNER_TESTS);
     
     for (int i = 0; i < NUM_TESTS; i++) {
+        double round_time = 0.0;
         unsigned char seed[params.n];
         unsigned char pub_seed[params.n];
         unsigned char public_key[params.wots_sig_bytes];
@@ -61,16 +64,16 @@ void keygen_time(void) {
         randombytes(seed, params.n);
         randombytes(pub_seed, params.n);
         
-        clock_t start = clock();
-        wots_pkgen(&params, public_key, seed, pub_seed, addr);
-        clock_t end = clock();
+        for (int j = 0; j < INNER_TESTS; j++) {
+            clock_t start = clock();
+            wots_pkgen(&params, public_key, seed, pub_seed, addr);
+            clock_t end = clock();
+            
+            round_time += ((double)(end - start)) / CLOCKS_PER_SEC;
+        }
         
-        total_time += ((double)(end - start)) / CLOCKS_PER_SEC;
+        printf("Keygen round %d average: %.8f seconds\n", i + 1, round_time / INNER_TESTS);
     }
-    
-    double avg_time = total_time / NUM_TESTS;
-    printf("\nTotal key generation time: %.8f seconds\n", total_time);
-    printf("Average key generation time: %.8f seconds\n", avg_time);
 }
 
 void signing_time(void) {
@@ -78,13 +81,13 @@ void signing_time(void) {
     uint32_t oid = 0x00000001;
     xmss_parse_oid(&params, oid);
     
-    const int NUM_TESTS = 100000;
-    double total_time = 0.0;
+    const int NUM_TESTS = 1000;
     
     printf("\n=== WOTS Signing Benchmark ===\n");
-    printf("Running %d tests...\n", NUM_TESTS);
+    printf("Running %d rounds (average of %d tests per round)...\n", NUM_TESTS, INNER_TESTS);
     
     for (int i = 0; i < NUM_TESTS; i++) {
+        double round_time = 0.0;
         unsigned char seed[params.n];
         unsigned char pub_seed[params.n];
         unsigned char signature[params.wots_sig_bytes];
@@ -95,16 +98,23 @@ void signing_time(void) {
         randombytes(pub_seed, params.n);
         randombytes(message, params.n);
         
-        clock_t start = clock();
-        wots_sign(&params, signature, message, seed, pub_seed, addr);
-        clock_t end = clock();
+        for (int j = 0; j < INNER_TESTS; j++) {
+            clock_t start = clock();
+            wots_sign(&params, signature, message, seed, pub_seed, addr);
+            clock_t end = clock();
+            
+            round_time += ((double)(end - start)) / CLOCKS_PER_SEC;
+        }
         
-        total_time += ((double)(end - start)) / CLOCKS_PER_SEC;
+        printf("Signing round %d average: %.8f seconds\n", i + 1, round_time / INNER_TESTS);
     }
-    
-    double avg_time = total_time / NUM_TESTS;
-    printf("\nTotal signing time: %.8f seconds\n", total_time);
-    printf("Average signing time: %.8f seconds\n", avg_time);
+}
+
+// Add this comparison function before verification_time
+static int compare_doubles(const void* a, const void* b) {
+    const double *da = (const double *)a;
+    const double *db = (const double *)b;
+    return (*da > *db) - (*da < *db);
 }
 
 void verification_time(void) {
@@ -112,16 +122,18 @@ void verification_time(void) {
     uint32_t oid = 0x00000001;
     xmss_parse_oid(&params, oid);
     
-    // Test parameters
-    const int NUM_TESTS = 100000;
-    double total_time = 0.0;
+    const int NUM_TESTS = 10000;
+    double *round_averages = malloc(NUM_TESTS * sizeof(double));
+    double min_avg = INFINITY;
+    double max_avg = 0.0;
+    double total_avg = 0.0;
     
-    printf("\n=== Verification Time Benchmark ===\n");
-    printf("Running %d tests...\n", NUM_TESTS);
+    printf("\n=== WOTS Verification Benchmark ===\n");
+    printf("Running %d rounds (average of %d tests per round)...\n", NUM_TESTS, INNER_TESTS);
     
+    // First collect all round averages
     for (int i = 0; i < NUM_TESTS; i++) {
-        // Generate new test instance
-
+        double round_time = 0.0;
         unsigned char seed[params.n];
         unsigned char pub_seed[params.n];
         unsigned char public_key[params.wots_sig_bytes];
@@ -129,34 +141,64 @@ void verification_time(void) {
         unsigned char message[params.n];
         uint32_t addr[8] = {0};
         
-        // Generate random inputs for this test
         randombytes(seed, params.n);
         randombytes(pub_seed, params.n);
         randombytes(message, params.n);
         
-        // Generate key pair and signature
+        // Generate keys and signature once per round
         wots_pkgen(&params, public_key, seed, pub_seed, addr);
         wots_sign(&params, signature, message, seed, pub_seed, addr);
         
-        // Time verification
-        clock_t start = clock();
-        int valid = wots_verify(&params, signature, message, public_key);
-        clock_t end = clock();
+        for (int j = 0; j < INNER_TESTS; j++) {
+            clock_t start = clock();
+            wots_verify(&params, signature, message, public_key);
+            clock_t end = clock();
+            
+            round_time += ((double)(end - start)) / CLOCKS_PER_SEC;
+        }
         
-        double time_taken = ((double)(end - start)) / CLOCKS_PER_SEC;
-        total_time += time_taken;
+        double round_avg = round_time / INNER_TESTS;
+        round_averages[i] = round_avg;
         
-        // printf("Test %d: %.6f seconds (Valid: %d)\n", i + 1, time_taken, valid);
+        // Update running statistics
+        total_avg += round_avg;
+        if (round_avg < min_avg) min_avg = round_avg;
+        if (round_avg > max_avg) max_avg = round_avg;
+        
+        printf("Round %d average: %.8f seconds\n", i + 1, round_avg);
     }
     
-    double avg_time = total_time / NUM_TESTS;
-    printf("\n Total verification time: %.8f seconds\n", total_time);
-    printf("\nAverage verification time: %.8f seconds\n", avg_time);
+    // Calculate final statistics
+    double mean = total_avg / NUM_TESTS;
+    
+    // Calculate variance and standard deviation
+    double variance = 0.0;
+    for (int i = 0; i < NUM_TESTS; i++) {
+        variance += pow(round_averages[i] - mean, 2);
+    }
+    variance /= NUM_TESTS;
+    double std_dev = sqrt(variance);
+    
+    // Calculate median (sort the averages first)
+    qsort(round_averages, NUM_TESTS, sizeof(double), compare_doubles);
+    double median = NUM_TESTS % 2 == 0 ? 
+        (round_averages[NUM_TESTS/2 - 1] + round_averages[NUM_TESTS/2]) / 2 :
+        round_averages[NUM_TESTS/2];
+    
+    printf("\nFinal Statistics across all rounds:\n");
+    printf("  Mean:    %.8f seconds\n", mean);
+    printf("  Median:  %.8f seconds\n", median);
+    printf("  Min:     %.8f seconds\n", min_avg);
+    printf("  Max:     %.8f seconds\n", max_avg);
+    printf("  Std Dev: %.8f seconds\n", std_dev);
+    printf("  Variance:%.8f seconds²\n", variance);
+    
+    free(round_averages);
 }
 
 int main(void) {
-    keygen_time();
-    signing_time();
+    // keygen_time();
+    // signing_time();
     verification_time();
     return 0;
 }

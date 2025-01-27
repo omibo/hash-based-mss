@@ -1,21 +1,24 @@
 #include <time.h>
 #include <stdio.h>
+#include <unistd.h>
 #include "../params.h"
 #include "../pots.h"
 #include "../randombytes.h"
+
+#define INNER_TESTS 1000
 
 void keygen_time(void) {
     xmss_params params;
     uint32_t oid = 0x00000001;
     xmss_parse_oid(&params, oid);
     
-    const int NUM_TESTS = 100000;
-    double total_time = 0.0;
+    const int NUM_TESTS = 1000;
     
     printf("\n=== POTS Key Generation Benchmark ===\n");
-    printf("Running %d tests...\n", NUM_TESTS);
+    printf("Running %d rounds (average of %d tests per round)...\n", NUM_TESTS, INNER_TESTS);
     
     for (int i = 0; i < NUM_TESTS; i++) {
+        double round_time = 0.0;
         unsigned char seed[params.n];
         unsigned char pub_seed[params.n];
         unsigned char sk[params.wots_len1 * params.wots_w * params.n];
@@ -25,16 +28,16 @@ void keygen_time(void) {
         randombytes(seed, params.n);
         randombytes(pub_seed, params.n);
         
-        clock_t start = clock();
-        pots_pkgen(&params, sk, pk, seed, pub_seed, addr);
-        clock_t end = clock();
+        for (int j = 0; j < INNER_TESTS; j++) {
+            clock_t start = clock();
+            pots_pkgen(&params, sk, pk, seed, pub_seed, addr);
+            clock_t end = clock();
+            
+            round_time += ((double)(end - start)) / CLOCKS_PER_SEC;
+        }
         
-        total_time += ((double)(end - start)) / CLOCKS_PER_SEC;
+        printf("Keygen round %d average: %.8f seconds\n", i + 1, round_time / INNER_TESTS);
     }
-    
-    double avg_time = total_time / NUM_TESTS;
-    printf("\nTotal key generation time: %.8f seconds\n", total_time);
-    printf("Average key generation time: %.8f seconds\n", avg_time);
 }
 
 void signing_time(void) {
@@ -42,13 +45,13 @@ void signing_time(void) {
     uint32_t oid = 0x00000001;
     xmss_parse_oid(&params, oid);
     
-    const int NUM_TESTS = 100000;
-    double total_time = 0.0;
+    const int NUM_TESTS = 1000;
     
     printf("\n=== POTS Signing Benchmark ===\n");
-    printf("Running %d tests...\n", NUM_TESTS);
+    printf("Running %d rounds (average of %d tests per round)...\n", NUM_TESTS, INNER_TESTS);
     
     for (int i = 0; i < NUM_TESTS; i++) {
+        double round_time = 0.0;
         unsigned char seed[params.n];
         unsigned char pub_seed[params.n];
         unsigned char sk[params.wots_len1 * params.wots_w * params.n];
@@ -62,16 +65,16 @@ void signing_time(void) {
         randombytes(message, params.n);
         pots_pkgen(&params, sk, pk, seed, pub_seed, addr);
         
-        clock_t start = clock();
-        pots_sign(&params, sig, message, sk, pub_seed, addr);
-        clock_t end = clock();
+        for (int j = 0; j < INNER_TESTS; j++) {
+            clock_t start = clock();
+            pots_sign(&params, sig, message, sk, pub_seed, addr);
+            clock_t end = clock();
+            
+            round_time += ((double)(end - start)) / CLOCKS_PER_SEC;
+        }
         
-        total_time += ((double)(end - start)) / CLOCKS_PER_SEC;
+        printf("Signing round %d average: %.8f seconds\n", i + 1, round_time / INNER_TESTS);
     }
-    
-    double avg_time = total_time / NUM_TESTS;
-    printf("\nTotal signing time: %.8f seconds\n", total_time);
-    printf("Average signing time: %.8f seconds\n", avg_time);
 }
 
 void verification_time(void) {
@@ -79,14 +82,13 @@ void verification_time(void) {
     uint32_t oid = 0x00000001;
     xmss_parse_oid(&params, oid);
     
-    const int NUM_TESTS = 100000;
-    double total_time = 0.0;
+    const int NUM_TESTS = 1000;
     
     printf("\n=== POTS Verification Benchmark ===\n");
-    printf("Running %d tests...\n\n", NUM_TESTS);
+    printf("Running %d rounds (average of %d tests per round)...\n", NUM_TESTS, INNER_TESTS);
     
     for (int i = 0; i < NUM_TESTS; i++) {
-        // Generate fresh test instance
+        double round_time = 0.0;
         unsigned char seed[params.n];
         unsigned char pub_seed[params.n];
         unsigned char sk[params.wots_len1 * params.wots_w * params.n];
@@ -95,35 +97,31 @@ void verification_time(void) {
         unsigned char message[params.n];
         uint32_t addr[8] = {0};
         
-        // Generate random inputs
         randombytes(seed, params.n);
         randombytes(pub_seed, params.n);
         randombytes(message, params.n);
         randombytes((unsigned char *)addr, 8 * sizeof(uint32_t));
         
-        // Generate keys and signature
+        // Generate keys and signature once per round
         pots_pkgen(&params, sk, pk, seed, pub_seed, addr);
         pots_sign(&params, sig, message, sk, pub_seed, addr);
         
-        // Time verification
-        clock_t start = clock();
-        int valid = pots_ver(&params, sig, message, pk);
-        clock_t end = clock();
+        for (int j = 0; j < INNER_TESTS; j++) {
+            clock_t start = clock();
+            pots_ver(&params, sig, message, pk);
+            clock_t end = clock();
+            
+            round_time += ((double)(end - start)) / CLOCKS_PER_SEC;
+        }
         
-        double time_taken = ((double)(end - start)) / CLOCKS_PER_SEC;
-        total_time += time_taken;
-        
-        // printf("Test %d: %.6f seconds (Valid: %d)\n", i + 1, time_taken, valid);
+        printf("Verification round %d average: %.8f seconds\n", 
+               i + 1, round_time / INNER_TESTS);
     }
-    
-    double avg_time = total_time / NUM_TESTS;
-    printf("\n Total verification time: %.8f seconds\n", total_time);
-    printf("\nAverage verification time: %.8f seconds\n", avg_time);
 }
 
 int main() {
-    keygen_time();
-    signing_time();
-    verification_time();
+    // keygen_time();
+    // signing_time();
+    // verification_time();
     return 0;
 }
